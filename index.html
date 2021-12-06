@@ -46,7 +46,7 @@
                     >
                     <el-popover
                         trigger="click">
-                        <el-link @click="窗口内打开(item.id)">{{item.hpath||挂件预定}}</el-link>
+                        <cc-link-siyuan :锚文本="item.name" :链接id="item.id"></cc-link-siyuan>
                         <div
                         slot="reference"
                         :style="`${item.content}`"
@@ -154,6 +154,7 @@
                 console.log(this.样式预览元素.style)
                 console.log(this.样式对象)
                 this.内部样式字符串=样式预览元素.style.cssText
+                this.挂件自身元素=this.$挂件自身元素()
             },
             
             data() {
