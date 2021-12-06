@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en" style="width:100%;height:100%;margin:0;padding:0;border:0;">
+<head>
+    <meta charset="utf-8">
+    <script src="/widgets/cc-baselib/static/vue.js"></script>
+    <script src="/widgets/cc-baselib/static/element-ui/index.js"></script>
+    <script src="/widgets/cc-baselib/static/axios.min.js"></script>
+    <script src="/widgets/cc-baselib/static/vue-clipboard.min.js"></script>
+    <script src="/widgets/cc-baselib/static/httpVueLoader.js"></script>
+    <script src="/widgets/cc-baselib/src/commonFunctionsForSiyuan.js"></script>
+    <script src="/widgets/cc-baselib/src/siYuanApi.js"></script>
+    <script src="/widgets/cc-baselib/src/componentsList.js"></script>
+    <link rel="stylesheet" href="/widgets/cc-baselib/static/element-ui/theme-chalk/index.css">
+    <link id='themeDefaultStyle'>
+</head>
+<body>
+    <div id='app'>
+            
+            <div>
+                <el-row>
+                    <div 
+                    ref="stylepreview"
+                    id="stylepreview"
+                
+                    >当前样式示例:Example
+                    </div>
+                </el-row>
+                <el-divider 
+                class="cc-toolbar-divider-hori">
+                </el-divider>
+                <div style="display:flex;flex-wrap: wrap;">
+                    <el-card  
+                    v-for="item in 预定义样式"
+                    >
+                        <div
+                        :style="`${item.value}`"
+                        ><strong
+                        @click="获取元素样式($event)"
+
+                        :style="`${item.value}`"
+                        >{{item.name}}</strong>
+                        </div>    
+                    </el-card>
+                    <el-card  
+                    v-for="item in 笔记内样式"
+                    >
+                    <el-popover
+                        trigger="click">
+                        <el-link @click="窗口内打开(item.id)">{{item.hpath||挂件预定}}</el-link>
+                        <div
+                        slot="reference"
+                        :style="`${item.content}`"
+                        @click="获取元素样式($event)"
+                        >{{item.name||item.id}}
+                        </div>
+                    </el-popover>     
+                    </el-card>
+                   
+                </div>
+            </div>
+            <el-divider         
+            class="cc-toolbar-divider-hori">
+            </el-divider>
+        <el-row>
+        <el-col :span="10">
+        <el-input 
+        v-if="!挂件模式" 
+        v-model="思源伺服ip" 
+        size="mini">
+        <span slot="prepend">请填写思源伺服IP</span>
+        </el-input>
+        </el-col> 
+        <el-col :span="10">     
+        <el-input 
+        v-if="!挂件模式" 
+        v-model="apitoken" 
+        size="mini">
+        <span slot="prepend">请填写思源apitoken</span>
+        </el-input>
+        </el-col>
+        </el-row> 
+        <el-divider         
+        v-if="!挂件模式" 
+        class="cc-toolbar-divider-hori">
+        </el-divider>
+        <cc-csscons-font
+        :思源伺服ip="思源伺服ip"
+        :apitoken="apitoken"
+        v-model="样式对象"
+        :自定义颜色数组="自定义颜色数组"
+        >
+        </cc-csscons-font>
+        <el-divider class="cc-toolbar-divider-hori"></el-divider>
+        <el-collapse>
+            <el-collapse-item title="边框|轮廓|背景(害没做完,改了有用)" name="1">
+            <cc-border-setter
+            :思源伺服ip="思源伺服ip"
+            :apitoken="apitoken"
+            v-model="样式对象"
+            :自定义颜色数组="自定义颜色数组"
+            >
+            </cc-border-setter>
+            </el-collapse-item>
+        </el-collapse>
+        
+        <el-divider class="cc-toolbar-divider-hori"></el-divider>
+        <cc-gradient-setter
+        v-if="样式对象.使用背景渐变"
+        v-model="样式对象.backgroundImage"
+        :自定义颜色数组="自定义颜色数组"
+        :宽度="600"
+        ></cc-gradient-setter>
+        <el-input disabled type="textarea" v-model="当前样式字符串"  id="css-preview"></el-input>
+        
+        <el-button v-if="挂件模式" @click="应用当前样式(当前样式字符串)" size="mini">应用</el-button>
+        <el-button v-if="!挂件模式" click="复制当前样式(当前样式字符串)" size="mini">复制</el-button>
+        <el-button  @click="内部样式字符串='';应用当前样式(内部样式字符串)" size="mini">清除</el-button>
+
+        <div>
+            <el-link 
+            @click="打开链接('https://getquicker.net/Sharedaction?code=7248dac6-4102-4b03-626c-08d9a4c9f420')"
+            >
+            获取quicker动作:此动作由群友Π编写,配合食用更佳.
+            </el-link>
+        </div>
+    </div>
+</body>
+<script >
+        var vm = new Vue({
+            el:"#app",
+            components:componentList,
+            beforeMount:async function(){
+                this.思源伺服ip = window.location.host
+                this.主界面= window.parent.document
+                this.主窗口 = window.parent
+                console.log("样式表",this.主界面.styleSheets)
+                this.获取主题()
+                await this.获取笔记内css()
+            },
+
+            mounted:async function(){
+                let 样式预览元素=window.document.querySelector("#stylepreview")
+                this.样式预览元素 = 样式预览元素
+                this.样式对象["cssText"]= this.内部样式字符串
+                this.样式对象["cssText"]= this.内部样式字符串["cssText"]
+                for (prop in 样式预览元素.style){
+                    this.样式对象[prop] = 样式预览元素.style[prop]
+                    if(!this.样式对象[prop]){this.样式对象[prop]=""}
+                }
+                this.样式对象=JSON.parse(JSON.stringify(this.样式对象))
+                this.样式对象.使用背景渐变=false
+                this.样式对象.使用文字遮罩=false
+
+                console.log(this.样式预览元素.style)
+                console.log(this.样式对象)
+                this.内部样式字符串=样式预览元素.style.cssText
+            },
+            
+            data() {
+                return {
+                    当前样式名:"",
+                    当前选中块数组:"",
+                    主界面:{},
+                    apitoken:"",
+                    思源伺服ip:"",
+                    当前选中文字:"",
+                    主窗口:{},
+                    当前所在元素:"",
+                    主题元素:"",
+                    挂件模式:false,
+                    测试数值:50,
+                    背景渐变:null,
+                    思源外观设置:{},
+                    预定义样式:[
+                        {"name":"default","value":""},
+                        {"name":"颜色 1","value":"color: var(--b3-font-color1); background-color: var(--b3-font-background1);"},
+                        {"name":"颜色 2","value":"color: var(--b3-font-color2); background-color: var(--b3-font-background2);"},
+                        {"name":"颜色 3","value":"color: var(--b3-font-color3); background-color: var(--b3-font-background3);"},
+                        {"name":"颜色 4","value":"color: var(--b3-font-color4); background-color: var(--b3-font-background4);"},
+                        {"name":"颜色 5","value":"color: var(--b3-font-color5); background-color: var(--b3-font-background5);"},
+                        {"name":"颜色 6","value":"color: var(--b3-font-color6); background-color: var(--b3-font-background6);"},
+                        {"name":"颜色 7","value":"color: var(--b3-font-color7); background-color: var(--b3-font-background7);"},
+                        {"name":"颜色 8","value":"color: var(--b3-font-color8); background-color: var(--b3-font-background8);"},
+                        {"name":"颜色 9","value":"color: var(--b3-font-color9); background-color: var(--b3-font-background9);"},
+                        {"name":"颜色 10","value":"color: var(--b3-font-color10); background-color: var(--b3-font-background10);"},
+                        {"name":"颜色 11","value":"color: var(--b3-font-color11); background-color: var(--b3-font-background11);"},
+                        {"name":"颜色 12","value":"color: var(--b3-font-color12); background-color: var(--b3-font-background12);"},
+                        {"name":"颜色 13","value":"color: var(--b3-font-color13); background-color: var(--b3-font-background1)3;"},
+                        {"name":"特效 1","value":"text-shadow: 0px 0px 0.1em, 0px 0px 0.3em;"},
+                        {"name":"特效 2","value":"-webkit-text-stroke: 0.2px var(--b3-theme-on-background); -webkit-text-fill-color: transparent;"},
+                        {"name":"特效 3","value":"background-image: linear-gradient(to right, var(--b3-theme-primary), var(--b3-theme-error)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"},
+                        {"name":"特效 4","value":"text-shadow: 1px 1px var(--b3-border-color), 2px 2px var(--b3-border-color), 3px 3px var(--b3-border-color), 4px 4px var(--b3-border-color);"},
+                     
+
+
+                    ],
+                    笔记内样式:[],
+                    缓存数组:[],
+                    当前样式字符串:"",
+                    样式对象:{},
+                    样式预览元素:"",
+                    内部样式字符串:"",
+                    使用背景渐变:false,
+                    自定义颜色数组:[],
+                    
+                }
+            },
+            watch:{
+                内部样式字符串:{
+                    handler(val){
+                    this.当前样式字符串  =val
+                    }
+                },
+                样式对象:{
+                        handler(val){
+                            for(prop in this.样式对象){
+                                let 样式预览元素=window.document.querySelector("#stylepreview")
+                                if (prop != "cssText"&&this.样式对象[prop]!=undefined&&this.样式对象[prop]!=""){
+
+                                    样式预览元素.style.setProperty(prop,this.样式对象[prop])
+                                    if(样式预览元素.style[prop]!=this.样式对象[prop]){样式预览元素.style[prop]=this.样式对象[prop]}
+
+                                if(样式预览元素.style[prop]||this.样式对象[prop]){
+                              //  console.log(样式预览元素)
+                               // console.log(prop,样式预览元素.style[prop],this.样式对象[prop])
+                                 }
+                                }
+                            }
+                            if(this.样式对象.使用文字遮罩){
+                                let 样式预览元素=window.document.querySelector("#stylepreview")
+                                样式预览元素.style["webkitBackgroundClip"]="text"
+                            }
+                            else{
+                                let 样式预览元素=window.document.querySelector("#stylepreview")
+                                样式预览元素.style["webkitBackgroundClip"]=""
+                            }
+                            this.内部样式字符串=window.document.querySelector("#stylepreview").style['cssText']
+                            this.内部样式字符串=this.内部样式字符串.replace("background-clip","-webkit-background-clip")          
+                            //this.内部样式字符串=this.内部样式字符串.replace("color: transparent","-webkit-text-fill: transparent")          
+
+                        },
+                        deep:true
+                },
+                背景渐变(val){
+                    this.当前背景样式字符串=`background-image:${val};`
+                },
+                当前样式字符串(val){
+                    let that=this
+                    that.应用当前样式(this.当前样式字符串)
+                },
+               
+                思源外观设置(val){
+                    let that =this
+                    let 复制主题元素 =  window.document.querySelector('#themeDefaultStyle')
+                  //  console.log(val)
+                    let 外观设置 =val
+                    let mode = 外观设置['mode']
+                    let 主题名 = 外观设置["themeDark"]
+                    if(mode){主题名 = 外观设置["themeLight"]}
+                    let href = `http://${that.思源伺服ip}/appearance/themes/daylight/theme.css?v=1.5.2`
+                    复制主题元素.setAttribute('rel',"stylesheet")
+                    复制主题元素.setAttribute('type',"text/css")
+                    复制主题元素.setAttribute('href',href)
+                },
+            },
+            computed:{
+               
+            },
+            methods:{
+                窗口内打开:async function(id){
+                let that = this
+                id = id.replace("((","").replace("))","")
+                that.获取主界面()
+                let 虚拟链接 =  that.主界面.createElement("span")
+                虚拟链接.setAttribute("data-type","block-ref")
+                虚拟链接.setAttribute("data-id",id)
+                let 临时目标 = that.主界面.querySelector(".protyle-wysiwyg div[data-node-id] div[contenteditable]")
+              //  console.log(临时目标)
+                临时目标.appendChild(虚拟链接)
+                let 点击事件 =  that.主界面.createEvent('MouseEvents')
+                点击事件.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                虚拟链接.dispatchEvent(点击事件);
+                虚拟链接.remove()
+            },
+                获取挂件自身元素(){
+                let that =this
+                that.挂件自身元素 = self.frameElement.parentElement.parentElement
+                挂件iframe = self.frameElement
+                if(that.挂件自身元素){
+                    that.挂件自身id = that.挂件自身元素.getAttribute("data-node-id")
+                    挂件iframe.setAttribute("style",挂件iframe.getAttribute("style")+'border-left:none;border-right:none;')
+                    }
+                else{return null}
+                },
+                获取预设:async function(){
+                    let that =this
+                    let filepath=this.挂件自身元素.getAttribute('data-assets')
+                    if(!filepath){filepath=this.挂件自身元素.getAttribute('custom-data-assets')}
+                    let url = 'http://'+that.思源伺服ip+'/'+filepath
+                    await axios.get(url).then((res)=>{
+                        that.自定义颜色数组 = res.data.自定义颜色数组
+                        that.预定义样式 =  res.data.预定义样式
+                    }) 
+                },
+                窗口内打开:function(id){
+                    let that = this
+                    窗口内打开思源块(that.主界面,id)
+                },
+                通过sql获取数据:async function(sql语句,目标数据名){
+                    let that = this
+                    let jsondatas =  {"stmt": sql语句} 
+                    await axios({
+                            method:'POST',
+                            url:'http://'+that.思源伺服ip + '/api/query/sql',
+                            headers:{'Authorization': 'Token '+ that.apitoken },
+                            data:(jsondatas)
+                            }).then(result =>{
+                            that[目标数据名] = result.data["data"]
+                            if (that[目标数据名] !=null){
+                            that[目标数据名].forEach(item=>item["flag"]=true)}
+                         //   console.log(that[目标数据名])
+                            })
+                },
+                获取笔记内css:async function(){
+                    let that = this
+                    let sql语句 =  'select * from blocks where type = "c" and content like "/*预定义样式*/%"'
+                    await that.通过sql获取数据(sql语句,'缓存数组')
+                    that.缓存数组.forEach(el=>el.content=el.content.replace("/*预定义样式*/",""))
+                    that.笔记内样式=that.笔记内样式.concat(that.缓存数组)
+                    
+                 //   console.log(that.笔记内主题片段数组)
+                },
+                获取元素样式($event){
+                    let 样式预览元素=$event.target
+                    this.内部样式字符串=样式预览元素.style.cssText
+                    this.样式预览元素 = window.document.querySelector("#stylepreview")
+                    this.样式预览元素.setAttribute("style",样式预览元素.style.cssText)
+                    this.样式对象=JSON.parse(JSON.stringify(样式预览元素.style))
+                    for (prop in 样式预览元素.style){
+                    this.样式对象[prop] = 样式预览元素.style[prop]
+                    if(!this.样式对象[prop]){this.样式对象[prop]=""}
+                    }
+                    this.样式对象["cssText"]= 样式预览元素.style.cssText,
+                    this.样式对象["webkitBackgroundClip"]=样式预览元素.style["webkitBackgroundClip"]
+                    if(this.样式对象["backgroundClip"]||this.样式对象["webkitBackgroundClip"]){
+                        this.样式对象.使用文字遮罩=true
+                    }
+                    else{
+                        this.样式对象.使用文字遮罩=false
+                    }
+                    this.样式对象=JSON.parse(JSON.stringify(this.样式对象))  
+                   // console.log(this.样式预览元素.style)
+                  //  console.log(this.样式对象)
+                  //  this.内部样式字符串=样式预览元素.style.cssText.replace("background-clip","-webkit-background-clip")                        
+                },
+                获取主题:function(){
+                let that =this
+                that.主题元素 = null
+                if (that.主界面!=document){
+                    that.主题元素 = that.主界面.querySelector('#themeDefaultStyle')
+                    let 复制主题元素 =  window.document.querySelector('#themeDefaultStyle')
+                    if (that.主题元素){
+                    复制主题元素.setAttribute('rel',that.主题元素.getAttribute('rel'))
+                    复制主题元素.setAttribute('type',that.主题元素.getAttribute('type'))
+                    复制主题元素.setAttribute('href',that.主题元素.getAttribute('href'))}
+                    if(复制主题元素.getAttribute('type')=="text/css"){that.挂件模式=true}
+                    that.主界面.addEventListener("mousemove",this.获取选中文字)
+
+                }
+                    else{
+                        this.通过接口获取当前外观设置()   
+                    }
+                },
+                获取选中文字(){
+                    let that =this
+                    let selected =  that.主界面.getSelection()
+                    if (selected.rangeCount&&selected.toString()!=""){this.当前选中文字=selected.toString()}
+                    
+                },
+                应用当前样式(样式字符串){
+                    let that =this
+                    if(!that.挂件模式){
+                        // 创建输入框
+                        var textarea = document.createElement('textarea');
+                        document.body.appendChild(textarea);
+                        // 隐藏此输入框
+                        textarea.style.position = 'absolute';
+                        textarea.style.clip = 'rect(0 0 0 0)';
+                        // 赋值
+                        textarea.value = 样式字符串;
+                        // 选中
+                        textarea.select();
+                        // 复制
+                        document.execCommand('copy', true);
+                        }
+                 
+                    try{ that.$copyText(样式字符串)}catch(e){}
+                    if (that.主界面){
+                        that.主界面 = that.主界面
+                        that.当前选中块数组=that.主界面.querySelectorAll(".protyle-wysiwyg--select")
+                        if (that.当前选中块数组){
+                         //   console.log(that.当前选中块数组)
+                            try{
+                                that.当前选中块数组.forEach(el=>that.设定块样式(el,样式字符串))
+                           }catch(e){
+                                
+                            }
+                        }
+                        that.设定选中文字(样式字符串)
+                    }
+                },
+                设定块样式(块元素,样式字符串 ){
+                    let that=this
+                    块元素.setAttribute("style",样式字符串)
+                    let 内容块id = 块元素.getAttribute("data-node-id")
+                    设置思源块属性(that.思源伺服ip,that.apitokn,内容块id,"style",样式字符串)
+                },
+                设定选中文字(样式字符串){
+                    let that = this
+                    let 当前文字区域 = that.主界面.getSelection()
+                    let range = new Range(that.主窗口)
+                    if (当前文字区域&&当前文字区域.rangeCount){
+                            let firstRange = 当前文字区域.getRangeAt(0)
+                            let lastRange = 当前文字区域.getRangeAt(当前文字区域.rangeCount-1);
+                            console.log(firstRange,lastRange)
+                            range.setStart(firstRange.startContainer,firstRange.startOffset)
+                            range.setEnd(lastRange.endContainer,lastRange.endOffset)
+                         //   console.log (当前文字区域.anchorNode)
+                        //    console.log (当前文字区域.focusNode)
+
+                            if (当前文字区域.anchorNode==当前文字区域.focusNode){
+                                let node = 当前文字区域.anchorNode
+                                if (node.tagName){console.log(node.tagName)}
+                                let strong =  that.主界面.createElement("strong")
+                                console.log(node)
+                                try{          
+                                    range.surroundContents(strong)
+
+                                    strong.setAttribute("style",样式字符串)
+                                    strong.innerHTML =strong.innerText
+                                }catch(e){}
+                                当前文字区域.removeAllRanges()
+                                当前文字区域.addRange(range)
+                            }
+                            else {
+                                let strong = that.主界面.createElement("strong")
+                                try{
+                                    let 文本=range.toString()
+
+                                    let html片段 = range.extractContents()
+                                   console.log(html片段)
+                                    
+                                    strong.setAttribute("style",样式字符串)
+                                    range.insertNode(html片段)
+                                    range.surroundContents(strong)
+                                    strong.innerHTML =strong.innerText
+                                    console.log(strong)
+
+                                }catch(e){}
+                                当前文字区域.removeAllRanges()
+                                当前文字区域.addRange(range)
+                            }
+                        }
+                    
+                },
+                复制当前样式(){
+                    let that = this
+                    if(!that.挂件模式){
+                        // 创建输入框
+                        var textarea = document.createElement('textarea');
+                        document.body.appendChild(textarea);
+                        // 隐藏此输入框
+                        textarea.style.position = 'absolute';
+                        textarea.style.clip = 'rect(0 0 0 0)';
+                        // 赋值
+                        textarea.value = that.当前样式字符串;
+                        // 选中
+                        textarea.select();
+                        // 复制
+                        document.execCommand('copy', true);
+                        }
+                    字符串=""
+                    try{
+                        字符串=that.当前样式字符串
+                     }catch(e){}
+                     that.$copyText(字符串)
+                },
+                通过接口获取当前外观设置:async function(){
+                        let that =this
+                        let jsondatas="{}"
+                        let url = 'http://'+this.思源伺服ip+'/api/system/getConf'
+                        let resData  = null
+                        await axios({
+                        method:'POST',
+                        url:'http://'+this.思源伺服ip+'/api/system/getConf',
+                        headers:{'Authorization': 'Token '+ that.apitoken },
+                        data:(jsondatas)
+                        }).then(result =>{
+                        that.思源设置=result.data["data"]
+                     //   console.log(that[目标数据名])
+                        })
+                        that.思源外观设置 = that.思源设置.appearance
+                },
+                打开链接(link){
+                    let that = this
+                    let 虚拟链接 =  that.主界面.createElement("span")
+                    虚拟链接.setAttribute("data-type","a")
+                    虚拟链接.setAttribute("data-href",link)
+                    let 临时目标 = that.主界面.querySelector(".protyle-wysiwyg div[data-node-id] div[contenteditable]")
+                  //  console.log(临时目标)
+                    临时目标.appendChild(虚拟链接)
+                    let 点击事件 =  that.主界面.createEvent('MouseEvents')
+                    点击事件.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                    虚拟链接.dispatchEvent(点击事件);
+                    虚拟链接.remove()
+                },
+                保存数据:async function(){
+                    let that = this
+                    let obj={}
+                    obj["自定义颜色数组"]=this.自定义颜色数组
+                    obj["预定义样式"]=this.预定义样式
+                    let 数据blob = new Blob([JSON.stringify(obj)],{type:'application/json'})
+                    let 文件 = new File([数据blob],`PresetOf:${this.挂件自身id}.json`,{lastModified:Date.now()})
+                
+                    let data =  new FormData
+                    data.append('assetsDirPath','/assets/')
+                    data.append('file[]',文件)
+                    let url = 'http://'+that.思源伺服ip+'/api/asset/upload'
+                    let filepath = ""
+                    await fetch(url,{
+                        body: data,
+                        method:'POST',
+                        headers:{'Authorization': 'Token '+ that.apitoken },
+                    }).then(
+                        function(response){
+                        console.log(response)
+                        return response.json()
+                        }
+                    ).then(function(resData){
+                    console.log(resData)
+                    let succMap = resData['data']['succMap']
+                    console.log(succMap)
+                    for(item in succMap){
+                        filepath = filepath+succMap[item]
+                        console.log(filepath)
+                    }
+                    //that.挂件自身元素.setAttribute('custom-data-assets',filepath)
+                    that.挂件自身元素.setAttribute('data-assets',filepath)
+                    })
+                    await 设置思源块属性(that.思源伺服ip,that.apitoken,that.挂件自身id,'data-assets',filepath)
+                },
+                }
+            
+    })
+</script>
+<style>
+     .cc-toolbar-divider{
+        border-left:solid 1px grey;
+        margin-left:1px
+    }
+    .el-collapse,.el-collapse-item,.el-collapse-item__wrap,.el-collapse-item__header{
+        background-color: var(--b3-theme-background) !important;
+    }
+    .cc-toolbar-divider-hori {
+        margin:2px 0 !important
+    }
+    body{
+        background-color: var(--b3-theme-background) !important;
+        font-family:var(--b3-font-family)
+    }
+    .el-card__body{
+        padding: 3px;
+    }
+    .el-icon-color{
+        background:url("/widgets/cc-baselib/icons/color.svg")  center no-repeat ;
+        background-size: cover;
+    }
+    .el-icon-color::before{
+        content: "\8d3a";
+        font-size: 14px;
+        visibility: hidden;
+    }
+</style>
+
+
